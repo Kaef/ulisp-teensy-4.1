@@ -2,29 +2,26 @@
     David Johnson-Davies - www.technoblogy.com - 1st June 2020
 
     Licensed under the MIT license: https://opensource.org/licenses/MIT
-
-    Kaef, 2020-06-16: added Teensy 4.1 support
 */
+
+// Lisp Library
+const char LispLibrary[] PROGMEM = "";
 
 // Compile options
 
-//#define resetautorun
+// #define resetautorun
 #define printfreespace
 // #define printgcs
-#define sdcardsupport
+// #define sdcardsupport
 // #define gfxsupport
-#define lisplibrary
+// #define lisplibrary
 #define assemblerlist
-#define lineeditor
-//#define vt100
+// #define lineeditor
+// #define vt100
 
 // Includes
-#ifdef lisplibrary // Kaef
-#include "LispLibrary.h"
-#else
-// Lisp Library
-const char LispLibrary[] PROGMEM = "";
-#endif
+
+// #include "LispLibrary.h"
 #include <setjmp.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -123,11 +120,7 @@ enum function { NIL, TEE, NOTHING, OPTIONAL, INITIALELEMENT, ELEMENTTYPE, BIT, A
                 DIGITALWRITE, ANALOGREAD, ANALOGWRITE, DELAY, MILLIS, SLEEP, NOTE, EDIT, PPRINT, PPRINTALL, FORMAT,
                 REQUIRE, LISTLIBRARY, DRAWPIXEL, DRAWLINE, DRAWRECT, FILLRECT, DRAWCIRCLE, FILLCIRCLE, DRAWROUNDRECT,
                 FILLROUNDRECT, DRAWTRIANGLE, FILLTRIANGLE, DRAWCHAR, SETCURSOR, SETTEXTCOLOR, SETTEXTSIZE, SETTEXTWRAP,
-                FILLSCREEN, SETROTATION, INVERTDISPLAY,
-                // Kaef: BEG Block
-                LISTDIR, RM, RMDIR, MKDIR,
-                // Kaef: END Block
-                ENDFUNCTIONS
+                FILLSCREEN, SETROTATION, INVERTDISPLAY, ENDFUNCTIONS
               };
 
 // Typedefs
@@ -266,21 +259,6 @@ typedef int PinMode;
 #define CODESIZE 256                    /* Bytes */
 #define STACKDIFF 320
 
-#elif defined(__IMXRT1062__) //TEENSY40 TEENSY41 (Kaef)
-#define WORKSPACESIZE ((48*1024)-SDSIZE) /*20480-SDSIZE*/      /* Cells (8*bytes) */
-#define FLASHSIZE 8192                  /* Bytes */
-#define SYMBOLTABLESIZE 1024            /* Bytes */
-#define STACKDIFF 1024
-#define SDCARD_SS_PIN BUILTIN_SDCARD
-#define CODESIZE 256                    /* Bytes */
-//#define HASDATAFLASH
-
-// '[...]teensy4/avr/pgmspace.h:30:39: error: data causes a section type conflict with data' --> ??? How to solve this?
-#undef PSTR
-#define PSTR(x) (x)
-
-#else
-#error "Board not supported!"
 #endif
 
 object Workspace[WORKSPACESIZE] WORDALIGNED;
@@ -968,7 +946,6 @@ float checkintfloat (symbol_t name, object *obj) {
     if (integerp(obj)) return obj->integer;
     if (floatp(obj)) return obj->single_float;
     error(name, notanumber, obj);
-    return 0.0; // Kaef: suppress compiler warning
 }
 
 int checkchar (symbol_t name, object *obj) {
@@ -1310,28 +1287,6 @@ char nthchar (object *string, int n) {
     if (arg == NULL) return 0;
     return (arg->chars) >> (n * 8) & 0xFF;
 }
-
-//////////////////////////////////////////////////////////
-// Kaef BEGIN: copied from ulisp-esp:
-char *cstring (object *form, char *buffer, int buflen) {
-    int index = 0;
-    form = cdr(form);
-    while (form != NULL) {
-        int chars = form->integer;
-        for (int i = (sizeof(int) - 1) * 8; i >= 0; i = i - 8) {
-            char ch = chars >> i & 0xFF;
-            if (ch) {
-                if (index >= buflen - 1) error2(0, PSTR("no room for string"));
-                buffer[index++] = ch;
-            }
-        }
-        form = car(form);
-    }
-    buffer[index] = '\0';
-    return buffer;
-}
-// Kaef END
-//////////////////////////////////////////////////////////
 
 int gstr () {
     if (LastChar) {
@@ -2427,11 +2382,7 @@ object *sp_withspi (object *args, object *env) {
     digitalWrite(pin, HIGH);
     params = cdr(params);
     int clock = 4000, mode = SPI_MODE0, address = 0; // Defaults
-#if defined(__IMXRT1062__) // TEENSY40 (Kaef)
-    uint8_t bitorder = MSBFIRST;
-#else
     BitOrder bitorder = MSBFIRST;
-#endif
     if (params != NULL) {
         clock = checkinteger(WITHSPI, eval(car(params), env));
         params = cdr(params);
@@ -2844,7 +2795,6 @@ object *fn_length (object *args, object *env) {
     if (stringp(arg)) return number(stringlength(arg));
     if (arrayp(arg) && cdr(cddr(arg)) == NULL) return number(-(first(cddr(arg))->integer));
     error(LENGTH, PSTR("argument is not a list, 1d array, or string"), arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_arraydimensions (object *args, object *env) {
@@ -3110,7 +3060,6 @@ object *negate (object *arg) {
         else return number(-result);
     } else if (floatp(arg)) return makefloat(-(arg->single_float));
     else error(SUBTRACT, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_subtract (object *args, object *env) {
@@ -3138,7 +3087,6 @@ object *fn_subtract (object *args, object *env) {
         }
         return number(result);
     } else error(SUBTRACT, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *multiply_floats (object *args, float fresult) {
@@ -3213,7 +3161,6 @@ object *fn_divide (object *args, object *env) {
         }
         return number(result);
     } else error(DIVIDE, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_mod (object *args, object *env) {
@@ -3246,7 +3193,6 @@ object *fn_oneplus (object *args, object *env) {
         if (result == INT_MAX) return makefloat((arg->integer) + 1.0);
         else return number(result + 1);
     } else error(ONEPLUS, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_oneminus (object *args, object *env) {
@@ -3258,7 +3204,6 @@ object *fn_oneminus (object *args, object *env) {
         if (result == INT_MIN) return makefloat((arg->integer) - 1.0);
         else return number(result - 1);
     } else error(ONEMINUS, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_abs (object *args, object *env) {
@@ -3270,7 +3215,6 @@ object *fn_abs (object *args, object *env) {
         if (result == INT_MIN) return makefloat(abs((float)result));
         else return number(abs(result));
     } else error(ABS, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_random (object *args, object *env) {
@@ -3279,7 +3223,6 @@ object *fn_random (object *args, object *env) {
     if (integerp(arg)) return number(random(arg->integer));
     else if (floatp(arg)) return makefloat((float)rand() / (float)(RAND_MAX / (arg->single_float)));
     else error(RANDOM, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_maxfn (object *args, object *env) {
@@ -3411,7 +3354,6 @@ object *fn_plusp (object *args, object *env) {
     if (floatp(arg)) return ((arg->single_float) > 0.0) ? tee : nil;
     else if (integerp(arg)) return ((arg->integer) > 0) ? tee : nil;
     else error(PLUSP, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_minusp (object *args, object *env) {
@@ -3420,7 +3362,6 @@ object *fn_minusp (object *args, object *env) {
     if (floatp(arg)) return ((arg->single_float) < 0.0) ? tee : nil;
     else if (integerp(arg)) return ((arg->integer) < 0) ? tee : nil;
     else error(MINUSP, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_zerop (object *args, object *env) {
@@ -3429,7 +3370,6 @@ object *fn_zerop (object *args, object *env) {
     if (floatp(arg)) return ((arg->single_float) == 0.0) ? tee : nil;
     else if (integerp(arg)) return ((arg->integer) == 0) ? tee : nil;
     else error(ZEROP, notanumber, arg);
-    return nil; // Kaef: suppress compiler warning
 }
 
 object *fn_oddp (object *args, object *env) {
@@ -4337,8 +4277,8 @@ object *fn_drawpixel (object *args, object *env) {
     uint16_t colour = COLOR_WHITE;
     if (cddr(args) != NULL) colour = checkinteger(DRAWPIXEL, third(args));
     tft.drawPixel(checkinteger(DRAWPIXEL, first(args)), checkinteger(DRAWPIXEL, second(args)), colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_drawline (object *args, object *env) {
@@ -4351,8 +4291,8 @@ object *fn_drawline (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(DRAWLINE, car(args));
     tft.drawLine(params[0], params[1], params[2], params[3], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_drawrect (object *args, object *env) {
@@ -4365,8 +4305,8 @@ object *fn_drawrect (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(DRAWRECT, car(args));
     tft.drawRect(params[0], params[1], params[2], params[3], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_fillrect (object *args, object *env) {
@@ -4379,8 +4319,8 @@ object *fn_fillrect (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(FILLRECT, car(args));
     tft.fillRect(params[0], params[1], params[2], params[3], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_drawcircle (object *args, object *env) {
@@ -4393,8 +4333,8 @@ object *fn_drawcircle (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(DRAWCIRCLE, car(args));
     tft.drawCircle(params[0], params[1], params[2], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_fillcircle (object *args, object *env) {
@@ -4407,8 +4347,8 @@ object *fn_fillcircle (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(FILLCIRCLE, car(args));
     tft.fillCircle(params[0], params[1], params[2], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_drawroundrect (object *args, object *env) {
@@ -4421,8 +4361,8 @@ object *fn_drawroundrect (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(DRAWROUNDRECT, car(args));
     tft.drawRoundRect(params[0], params[1], params[2], params[3], params[4], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_fillroundrect (object *args, object *env) {
@@ -4435,8 +4375,8 @@ object *fn_fillroundrect (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(FILLROUNDRECT, car(args));
     tft.fillRoundRect(params[0], params[1], params[2], params[3], params[4], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_drawtriangle (object *args, object *env) {
@@ -4449,8 +4389,8 @@ object *fn_drawtriangle (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(DRAWTRIANGLE, car(args));
     tft.drawTriangle(params[0], params[1], params[2], params[3], params[4], params[5], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_filltriangle (object *args, object *env) {
@@ -4463,8 +4403,8 @@ object *fn_filltriangle (object *args, object *env) {
     }
     if (args != NULL) colour = checkinteger(FILLTRIANGLE, car(args));
     tft.fillTriangle(params[0], params[1], params[2], params[3], params[4], params[5], colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_drawchar (object *args, object *env) {
@@ -4483,16 +4423,16 @@ object *fn_drawchar (object *args, object *env) {
     }
     tft.drawChar(checkinteger(DRAWCHAR, first(args)), checkinteger(DRAWCHAR, second(args)), checkchar(DRAWCHAR, third(args)),
                  colour, bg, size);
-#endif
     return nil;
+#endif
 }
 
 object *fn_setcursor (object *args, object *env) {
 #if defined(gfxsupport)
     (void) env;
     tft.setCursor(checkinteger(SETCURSOR, first(args)), checkinteger(SETCURSOR, second(args)));
-#endif
     return nil;
+#endif
 }
 
 object *fn_settextcolor (object *args, object *env) {
@@ -4500,24 +4440,24 @@ object *fn_settextcolor (object *args, object *env) {
     (void) env;
     if (cdr(args) != NULL) tft.setTextColor(checkinteger(SETTEXTCOLOR, first(args)), checkinteger(SETTEXTCOLOR, second(args)));
     else tft.setTextColor(checkinteger(SETTEXTCOLOR, first(args)));
-#endif
     return nil;
+#endif
 }
 
 object *fn_settextsize (object *args, object *env) {
 #if defined(gfxsupport)
     (void) env;
     tft.setTextSize(checkinteger(SETTEXTSIZE, first(args)));
-#endif
     return nil;
+#endif
 }
 
 object *fn_settextwrap (object *args, object *env) {
 #if defined(gfxsupport)
     (void) env;
     tft.setTextWrap(first(args) != NULL);
-#endif
     return nil;
+#endif
 }
 
 object *fn_fillscreen (object *args, object *env) {
@@ -4526,162 +4466,27 @@ object *fn_fillscreen (object *args, object *env) {
     uint16_t colour = COLOR_BLACK;
     if (args != NULL) colour = checkinteger(FILLSCREEN, first(args));
     tft.fillScreen(colour);
-#endif
     return nil;
+#endif
 }
 
 object *fn_setrotation (object *args, object *env) {
 #if defined(gfxsupport)
     (void) env;
     tft.setRotation(checkinteger(SETROTATION, first(args)));
-#endif
     return nil;
+#endif
 }
 
 object *fn_invertdisplay (object *args, object *env) {
 #if defined(gfxsupport)
     (void) env;
     tft.invertDisplay(first(args) != NULL);
-#endif
     return nil;
+#endif
 }
 
-///////////////////////////////////////////////////////////
 // Insert your own function definitions here
-
-#if (defined sdcardsupport)
-void identDirListing(uint8_t curDirLevel) {
-    for (int i = 0; i < curDirLevel; i++)
-        pfstring(PSTR("  "), pserial);
-}
-
-void listDir (const char * dirname, uint8_t curDirLevel) {
-    SD.begin(SDCARD_SS_PIN);
-    const uint8_t MAX_DIR_LEVELS = 10;
-    identDirListing(curDirLevel);
-    pfstring(PSTR("  Listing directory: "), pserial); pfstring(dirname, pserial); pln(pserial);
-
-    File root = SD.open(dirname);
-    if (!root) {
-        pfstring(PSTR("Failed to open directory"), pserial); pln(pserial);
-        return;
-    }
-    if (!root.isDirectory()) {
-        pfstring(PSTR("Not a directory"), pserial); pln(pserial);
-        return;
-    }
-
-    File file = root.openNextFile();
-    while (file) {
-        identDirListing(curDirLevel);
-        if (file.isDirectory()) {
-            pfstring(PSTR("    DIR:  "), pserial);
-            pfstring(file.name(), pserial); pln(pserial);
-            if (curDirLevel < MAX_DIR_LEVELS) {
-                listDir(file.name(), curDirLevel + 1);
-            } else {
-                pfstring(PSTR("      no more levels shown..."), pserial);
-                pln(pserial);
-            }
-        } else {
-            pfstring(PSTR("    FILE: "), pserial);
-            pfstring(file.name(), pserial);
-            pfstring(PSTR(" ("), pserial); pint(file.size(), pserial);
-            pfstring(PSTR(" Bytes)"), pserial);
-            pln(pserial);
-        }
-        file = root.openNextFile();
-    }
-    identDirListing(curDirLevel);
-    pfstring(PSTR("  done"), pserial); pln(pserial);
-}
-#endif
-
-object *fn_listDir (object *args, object *env) {
-    (void) args; (void) env;
-#ifdef sdcardsupport
-    listDir("/", 0);
-#else
-    error2(0, PSTR("sdcardsupport not enabled"));
-#endif
-    return tee;
-}
-
-object *fn_rm (object *args, object *env) {
-    (void) env;
-    bool result = false;
-#ifdef sdcardsupport
-    object *filename = first(args);
-    if (stringp(filename)) {
-        char fn[256];
-        memset(fn, 0, sizeof(fn));
-        fn[0] = '/';
-        cstring(filename, &fn[1], sizeof(fn) - 2);
-        SD.begin(SDCARD_SS_PIN);
-        File root = SD.open(fn);
-        if (!root) {
-            pfstring(PSTR("Failed to open directory"), pserial); pln(pserial);
-            return nil;
-        }
-        if (!root.isDirectory()) {
-            result = SD.remove(fn);
-        }
-    } else error2((int)args, PSTR("Argument should be string!"));
-#else
-    error2(0, PSTR("sdcardsupport not defined, function disabled"));
-#endif
-    return result ? tee : nil;
-}
-
-object *fn_rmdir (object *args, object *env) {
-    (void) env;
-    bool result = false;
-#ifdef sdcardsupport
-    object *filename = first(args);
-    if (stringp(filename)) {
-        char fn[256];
-        memset(fn, 0, sizeof(fn));
-        fn[0] = '/';
-        cstring(filename, &fn[1], sizeof(fn) - 2);
-
-        SD.begin(SDCARD_SS_PIN);
-        File root = SD.open(fn);
-        if (!root) {
-            pfstring(PSTR("Failed to open directory"), pserial); pln(pserial);
-            return nil;
-        }
-        if (root.isDirectory()) {
-            result = SD.rmdir(fn);
-        }
-    } else error2((int)args, PSTR("Argument should be string!"));
-#else
-    error2(0, PSTR("sdcardsupport not defined, function disabled"));
-#endif
-    return result ? tee : nil;
-}
-
-object *fn_mkdir (object *args, object *env) {
-    (void) env;
-    bool result = false;
-#ifdef sdcardsupport
-    object *filename = first(args);
-    if (stringp(filename)) {
-        char fn[256];
-        memset(fn, 0, sizeof(fn));
-        fn[0] = '/';
-        cstring(filename, &fn[1], sizeof(fn) - 2);
-
-        SD.begin(SDCARD_SS_PIN);
-        if (!SD.exists(fn)) {
-            result = SD.mkdir(fn);
-        }
-        else error2((int)args, PSTR("already exists!"));
-    } else error2((int)args, PSTR("Argument should be string!"));
-#else
-    error2(0, PSTR("sdcardsupport not defined, function disabled"));
-#endif
-    return result ? tee : nil;
-}
 
 // Built-in procedure names - stored in PROGMEM
 
@@ -4894,12 +4699,6 @@ const char string205[] PROGMEM = "set-text-wrap";
 const char string206[] PROGMEM = "fill-screen";
 const char string207[] PROGMEM = "set-rotation";
 const char string208[] PROGMEM = "invert-display";
-// BEGIN KAEF
-const char string209[] PROGMEM = "ls";
-const char string210[] PROGMEM = "rm";
-const char string211[] PROGMEM = "rmdir";
-const char string212[] PROGMEM = "mkdir";
-// END KAEF
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
 const tbl_entry_t lookup_table[] PROGMEM = {
@@ -5112,10 +4911,6 @@ const tbl_entry_t lookup_table[] PROGMEM = {
     { string206, fn_fillscreen, 0x01 },
     { string207, fn_setrotation, 0x11 },
     { string208, fn_invertdisplay, 0x11 },
-    { string209, fn_listDir, 0x00 },
-    { string210, fn_rm, 0x11 },
-    { string211, fn_rmdir, 0x11 },
-    { string212, fn_mkdir, 0x11 },
 };
 
 // Table lookup functions
@@ -5186,19 +4981,16 @@ void testescape () {
 }
 
 // Main evaluator
+
 extern uint32_t end;  // Bottom of stack
 
 object *eval (object *form, object *env) {
+    register int *sp asm ("r13");
     int TC = 0;
 EVAL:
     // Enough space?
-#if defined(__IMXRT1062__) //TEENSY40 (Kaef)
-#warning "Stack overflow check disabled!"
-#else
-    register int *sp asm ("r13");
     // Serial.println((uint32_t)sp - (uint32_t)&end);
     if (((uint32_t)sp - (uint32_t)&end) < STACKDIFF) error2(0, PSTR("Stack overflow"));
-#endif
     if (Freespace <= WORKSPACESIZE >> 4) gc(form, env);
     // Escape
     if (tstflag(ESCAPE)) {
@@ -5905,7 +5697,7 @@ void initenv () {
 }
 
 void setup () {
-    Serial.begin(115200);
+    Serial.begin(9600);
     int start = millis();
     while ((millis() - start) < 5000) {
         if (Serial) break;
@@ -5914,7 +5706,7 @@ void setup () {
     initenv();
     initsleep();
     initgfx();
-    pfstring(PSTR("uLisp 3.3 (Teensy-4.1)"), pserial); pln(pserial);
+    pfstring(PSTR("uLisp 3.3 "), pserial); pln(pserial);
 }
 
 // Read/Evaluate/Print loop
