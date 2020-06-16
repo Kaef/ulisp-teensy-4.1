@@ -8,9 +8,18 @@ Kaef, 16.06.2020
 This is a fork of ulisp-3.3-arm with added support for Teensy-4.1 board.
 The board is made by pjrc, please see documentation at their webpage.
 
+Not many changes were needed to run ulisp-3.3-arm on the Teensy-4.1 board.
+I add a comment to all code changes using "// Kaef" and/or "Teensy-4.1" comments
+to make it easy finding my changes.
+I include the (almost) original version of ulisp-3.3-arm (named "ulisp-arm.ino.org")
+so you can create a diff to see all changes I made.
+
+I did not test this version with any other supported arm processor boards, so it
+may have problems using this version with one of these boards.
+For all other arm processor boards already supported by ulisp I strongly recommend using David's original version of ulisp-3.3-arm.
+
 ## Motivation
-This is an additional 'proof of concept' I made with ulisp-2.8-arm for the
-Teensy-4.0 board.
+This is an additional 'proof of concept' I made with ulisp-2.8-arm for the Teensy-4.0 board.
 
 This version of ulisp-3.3-arm is able to use the on-board sd-card socket of the Teensy-4.1 board to store uLisp-Images
 and other Files (i.e. uLisp code files) on the sd-card.
@@ -32,7 +41,7 @@ I haven't tested it.
 * ARM cortex M7 processor at 600 MHz with a NXP iMXRT1062 chip
 * 1024k RAM, 2048k flash
 * USB, CAN, I2S, SPI, I2C, ADC, RTC, FP unit and much more
-* needs 0.42 seconds for the (tak 18 12 6) benchmark,
+* needs ~0.5 seconds for the (tak 18 12 6) benchmark,
   which is about 14 times faster than the Maxim MAX32620FTHR,
   currently the fastest ulisp board and about 17 times faster than the ESP32!
 
