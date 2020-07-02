@@ -267,25 +267,25 @@ typedef int PinMode;
 #define STACKDIFF 320
 
 #elif defined(__IMXRT1062__) //TEENSY40 TEENSY41 (Kaef)
-#define WORKSPACESIZE ((48*1024)-SDSIZE) /*20480-SDSIZE*/      /* Cells (8*bytes) */
+#define WORKSPACESIZE (62*1024)         /* Cells (8*bytes) */
 #define FLASHSIZE 8192                  /* Bytes */
 #define SYMBOLTABLESIZE 1024            /* Bytes */
 #define STACKDIFF 1024
 #define SDCARD_SS_PIN BUILTIN_SDCARD
 #define CODESIZE 256                    /* Bytes */
+object Workspace[WORKSPACESIZE] WORDALIGNED DMAMEM;
+FASTRUN uint8_t MyCode[CODESIZE] WORDALIGNED;
 //#define HASDATAFLASH
-
-// '[...]teensy4/avr/pgmspace.h:30:39: error: data causes a section type conflict with data' --> ??? How to solve this?
-#undef PSTR
-#define PSTR(x) (x)
 
 #else
 #error "Board not supported!"
 #endif
 
+#ifndef __IMXRT1062__
 object Workspace[WORKSPACESIZE] WORDALIGNED;
-char SymbolTable[SYMBOLTABLESIZE];
 RAMFUNC uint8_t MyCode[CODESIZE] WORDALIGNED;
+#endif
+char SymbolTable[SYMBOLTABLESIZE];
 
 // Global variables
 
@@ -1310,28 +1310,6 @@ char nthchar (object *string, int n) {
     if (arg == NULL) return 0;
     return (arg->chars) >> (n * 8) & 0xFF;
 }
-
-//////////////////////////////////////////////////////////
-// Kaef BEGIN: copied from ulisp-esp:
-char *cstring (object *form, char *buffer, int buflen) {
-    int index = 0;
-    form = cdr(form);
-    while (form != NULL) {
-        int chars = form->integer;
-        for (int i = (sizeof(int) - 1) * 8; i >= 0; i = i - 8) {
-            char ch = chars >> i & 0xFF;
-            if (ch) {
-                if (index >= buflen - 1) error2(0, PSTR("no room for string"));
-                buffer[index++] = ch;
-            }
-        }
-        form = car(form);
-    }
-    buffer[index] = '\0';
-    return buffer;
-}
-// Kaef END
-//////////////////////////////////////////////////////////
 
 int gstr () {
     if (LastChar) {
@@ -4550,6 +4528,26 @@ object *fn_invertdisplay (object *args, object *env) {
 // Insert your own function definitions here
 
 #if (defined sdcardsupport)
+//////////////////////////////////////////////////////////
+// Kaef: copied from ulisp-esp:
+char *cstring (object *form, char *buffer, int buflen) {
+    int index = 0;
+    form = cdr(form);
+    while (form != NULL) {
+        int chars = form->integer;
+        for (int i = (sizeof(int) - 1) * 8; i >= 0; i = i - 8) {
+            char ch = chars >> i & 0xFF;
+            if (ch) {
+                if (index >= buflen - 1) error2(0, PSTR("no room for string"));
+                buffer[index++] = ch;
+            }
+        }
+        form = car(form);
+    }
+    buffer[index] = '\0';
+    return buffer;
+}
+
 void identDirListing(uint8_t curDirLevel) {
     for (int i = 0; i < curDirLevel; i++)
         pfstring(PSTR("  "), pserial);
@@ -5112,10 +5110,12 @@ const tbl_entry_t lookup_table[] PROGMEM = {
     { string206, fn_fillscreen, 0x01 },
     { string207, fn_setrotation, 0x11 },
     { string208, fn_invertdisplay, 0x11 },
+// Kaef begin
     { string209, fn_listDir, 0x00 },
     { string210, fn_rm, 0x11 },
     { string211, fn_rmdir, 0x11 },
     { string212, fn_mkdir, 0x11 },
+// Kaef end
 };
 
 // Table lookup functions
